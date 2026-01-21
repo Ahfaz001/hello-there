@@ -16,10 +16,7 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// CORS
-// NOTE: When testing from Lovable preview, the origin is a random *.lovable.app domain.
-// If we only allow a single FRONTEND_URL (e.g. your Vercel domain), the browser will show
-// `TypeError: Failed to fetch` due to CORS.
+// CORS Configuration
 const allowedOrigins = (
   process.env.FRONTEND_URLS ||
   process.env.FRONTEND_URL ||
@@ -32,13 +29,6 @@ const allowedOrigins = (
 const isAllowedOrigin = (origin?: string) => {
   if (!origin) return true; // non-browser requests (curl/postman)
   if (allowedOrigins.includes(origin)) return true;
-  // Allow Lovable preview/published domains
-  try {
-    const { hostname } = new URL(origin);
-    if (hostname.endsWith('.lovable.app')) return true;
-  } catch {
-    // ignore invalid origins
-  }
   return false;
 };
 
