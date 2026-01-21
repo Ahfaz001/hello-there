@@ -89,6 +89,32 @@ export const NoteEditorPage: React.FC = () => {
       setTitle(payload.title);
       setContent(payload.content);
       lastSavedRef.current = { title: payload.title, content: payload.content };
+
+      // Keep react-query caches in sync as well (so other UI that reads from cache stays updated)
+      queryClient.setQueryData<any>(['notes', noteId], (prev) => {
+        const prevNote = prev?.note ?? prev;
+        if (!prevNote) return prev;
+        return {
+          note: {
+            ...prevNote,
+            title: payload.title,
+            content: payload.content,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+      });
+
+      queryClient.setQueryData<any>(['notes'], (prev) => {
+        const prevNotes = Array.isArray(prev) ? prev : prev?.notes;
+        if (!Array.isArray(prevNotes)) return prev;
+        return {
+          notes: prevNotes.map((n: any) =>
+            n?.id === noteId
+              ? { ...n, title: payload.title, content: payload.content, updatedAt: new Date().toISOString() }
+              : n
+          ),
+        };
+      });
     }
     
     // Handle real-time collaborator updates
@@ -100,7 +126,7 @@ export const NoteEditorPage: React.FC = () => {
     }
   }, [user?.id, noteId, queryClient]);
 
-  const { isConnected, connectedUsers, sendMessage } = useWebSocket({
+  const { isConnected, connectedUsers, lastError, sendMessage, reconnect } = useWebSocket({
     noteId: noteId!,
     token: token!,
     onMessage: handleWebSocketMessage,
@@ -264,9 +290,17 @@ export const NoteEditorPage: React.FC = () => {
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              {isConnected ? 'Connected for real-time collaboration' : 'Disconnected'}
+              {isConnected
+                ? 'Connected for real-time collaboration'
+                : (lastError ? `Disconnected: ${lastError}` : 'Disconnected')}
             </TooltipContent>
           </Tooltip>
+
+          {!isConnected && (
+            <Button variant="outline" size="sm" onClick={reconnect}>
+              Reconnect
+            </Button>
+          )}
 
           {connectedUsers.length > 0 && (
             <div className="flex -space-x-2">

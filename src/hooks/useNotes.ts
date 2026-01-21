@@ -24,6 +24,9 @@ export const useNote = (noteId: string) => {
     queryKey: ['notes', noteId],
     queryFn: () => fetchWithAuth<{ note: Note }>(API_ENDPOINTS.NOTE(noteId), token!),
     enabled: !!token && !!noteId,
+    // Fallback sync if realtime is blocked by network/CORS.
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
     select: (data) => data.note,
   });
 };

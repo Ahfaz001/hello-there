@@ -21,6 +21,7 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const stableColorForUser = useCallback((userId: string) => {
     // Deterministic HSL color from userId (no design tokens apply to arbitrary per-user colors)
@@ -53,6 +54,7 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
 
     socket.on('connect', () => {
       setIsConnected(true);
+      setLastError(null);
       onConnect?.();
       socket.emit('join-note', noteId);
     });
@@ -61,6 +63,11 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
       setIsConnected(false);
       setConnectedUsers([]);
       onDisconnect?.();
+    });
+
+    socket.on('error', (payload: any) => {
+      const msg = payload?.message || payload?.error || 'Realtime error';
+      setLastError(String(msg));
     });
 
     socket.on('collaborators', (users: Array<{ userId: string; userName: string }>) => {
@@ -131,6 +138,7 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
     socket.on('connect_error', (err) => {
       // Common when token invalid or CORS misconfigured
       console.error('Realtime connection error:', err?.message || err);
+      setLastError(err?.message || 'Connection error');
     });
   }, [noteId, token, onMessage, onConnect, onDisconnect, stableColorForUser]);
 
@@ -142,6 +150,12 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
     socket.disconnect();
     socketRef.current = null;
   }, [noteId]);
+
+  const reconnect = useCallback(() => {
+    disconnect();
+    // Small delay so the old connection fully tears down
+    setTimeout(() => connect(), 200);
+  }, [connect, disconnect]);
 
   const sendMessage = useCallback((message: Omit<WebSocketMessage, 'timestamp'>) => {
     const socket = socketRef.current;
@@ -171,7 +185,9 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
   return {
     isConnected,
     connectedUsers,
+    lastError,
     sendMessage,
     disconnect,
+    reconnect,
   };
 };
