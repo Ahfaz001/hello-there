@@ -26,6 +26,8 @@ export const API_ENDPOINTS = {
   // Admin
   ADMIN_USERS: `${API_BASE_URL}/admin/users`,
   ADMIN_USER: (id: string) => `${API_BASE_URL}/admin/users/${id}`,
+  ADMIN_NOTES: `${API_BASE_URL}/admin/notes`,
+  ADMIN_NOTE: (id: string) => `${API_BASE_URL}/admin/notes/${id}`,
 };
 
 export const WS_ENDPOINT = WS_URL;
