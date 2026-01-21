@@ -132,26 +132,31 @@ export const useAddCollaborator = () => {
 
       if (collaborator) {
         // Update note detail cache immediately (so Share dialog updates without refresh)
-        queryClient.setQueryData<Note>(['notes', noteId], (prev) => {
-          if (!prev) return prev;
+        queryClient.setQueryData<{ note: Note }>(['notes', noteId], (prev) => {
+          if (!prev?.note) return prev;
+          const existingCollabs = prev.note.collaborators || [];
           const nextCollaborators = [
-            ...prev.collaborators.filter((c) => c.userId !== collaborator.userId),
+            ...existingCollabs.filter((c) => c.userId !== collaborator.userId),
             collaborator,
           ];
-          return { ...prev, collaborators: nextCollaborators };
+          return { ...prev, note: { ...prev.note, collaborators: nextCollaborators } };
         });
 
         // Also update notes list cache immediately (owner/admin view)
-        queryClient.setQueryData<Note[]>(['notes'], (prev) => {
-          if (!prev) return prev;
-          return prev.map((n) => {
-            if (n.id !== noteId) return n;
-            const nextCollaborators = [
-              ...n.collaborators.filter((c) => c.userId !== collaborator.userId),
-              collaborator,
-            ];
-            return { ...n, collaborators: nextCollaborators };
-          });
+        queryClient.setQueryData<{ notes: Note[] }>(['notes'], (prev) => {
+          if (!prev?.notes) return prev;
+          return {
+            ...prev,
+            notes: prev.notes.map((n) => {
+              if (n.id !== noteId) return n;
+              const existingCollabs = n.collaborators || [];
+              const nextCollaborators = [
+                ...existingCollabs.filter((c) => c.userId !== collaborator.userId),
+                collaborator,
+              ];
+              return { ...n, collaborators: nextCollaborators };
+            }),
+          };
         });
       }
 
@@ -185,17 +190,22 @@ export const useRemoveCollaborator = () => {
     },
     onSuccess: (_, { noteId, userId }) => {
       // Update caches immediately
-      queryClient.setQueryData<Note>(['notes', noteId], (prev) => {
-        if (!prev) return prev;
-        return { ...prev, collaborators: prev.collaborators.filter((c) => c.userId !== userId) };
+      queryClient.setQueryData<{ note: Note }>(['notes', noteId], (prev) => {
+        if (!prev?.note) return prev;
+        const existingCollabs = prev.note.collaborators || [];
+        return { ...prev, note: { ...prev.note, collaborators: existingCollabs.filter((c) => c.userId !== userId) } };
       });
 
-      queryClient.setQueryData<Note[]>(['notes'], (prev) => {
-        if (!prev) return prev;
-        return prev.map((n) => {
-          if (n.id !== noteId) return n;
-          return { ...n, collaborators: n.collaborators.filter((c) => c.userId !== userId) };
-        });
+      queryClient.setQueryData<{ notes: Note[] }>(['notes'], (prev) => {
+        if (!prev?.notes) return prev;
+        return {
+          ...prev,
+          notes: prev.notes.map((n) => {
+            if (n.id !== noteId) return n;
+            const existingCollabs = n.collaborators || [];
+            return { ...n, collaborators: existingCollabs.filter((c) => c.userId !== userId) };
+          }),
+        };
       });
 
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
