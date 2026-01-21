@@ -27,7 +27,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, FileText, Trash2, Users, Clock, Loader2 } from 'lucide-react';
+import { Plus, Search, FileText, Trash2, Users, Clock, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export const NotesListPage: React.FC = () => {
@@ -99,7 +99,10 @@ export const NotesListPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="container py-8 flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading your notes...</p>
+        </div>
       </div>
     );
   }
@@ -107,7 +110,7 @@ export const NotesListPage: React.FC = () => {
   if (error) {
     return (
       <div className="container py-8">
-        <Card className="border-destructive">
+        <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="pt-6">
             <p className="text-destructive">Failed to load notes. Please try again later.</p>
           </CardContent>
@@ -120,19 +123,27 @@ export const NotesListPage: React.FC = () => {
     <div className="container py-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">My Notes</h1>
-          <p className="text-muted-foreground mt-1">Create and manage your collaborative notes</p>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <FileText className="h-7 w-7 text-primary" />
+            </div>
+            My Notes
+          </h1>
+          <p className="text-muted-foreground mt-2">Create and manage your collaborative notes</p>
         </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="shadow-lg shadow-primary/20 group">
+              <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
               New Note
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Create New Note</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                Create New Note
+              </DialogTitle>
               <DialogDescription>Give your note a title and start writing.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
@@ -143,6 +154,7 @@ export const NotesListPage: React.FC = () => {
                   placeholder="My awesome note..."
                   value={newNote.title}
                   onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
+                  className="h-11"
                 />
               </div>
               <div className="space-y-2">
@@ -153,6 +165,7 @@ export const NotesListPage: React.FC = () => {
                   rows={4}
                   value={newNote.content}
                   onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
+                  className="resize-none"
                 />
               </div>
             </div>
@@ -170,43 +183,49 @@ export const NotesListPage: React.FC = () => {
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search notes..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          className="pl-12 h-12 bg-muted/50 border-border/50 focus:bg-background text-base"
         />
       </div>
 
       {filteredNotes.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+        <Card className="border-dashed border-2 bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <div className="p-4 rounded-full bg-primary/10 mb-4">
+              <FileText className="h-12 w-12 text-primary/60" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">
               {searchQuery ? 'No notes found' : 'No notes yet'}
             </h3>
-            <p className="text-muted-foreground text-center mb-4">
+            <p className="text-muted-foreground text-center mb-6 max-w-sm">
               {searchQuery 
                 ? 'Try adjusting your search query'
-                : 'Create your first note to get started'}
+                : 'Create your first note to get started with organizing your ideas'}
             </p>
             {!searchQuery && (
-              <Button onClick={() => setIsCreateDialogOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Note
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="group">
+                <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+                Create Your First Note
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredNotes.map((note) => (
-            <Card key={note.id} className="group hover:shadow-md transition-shadow">
+          {filteredNotes.map((note, index) => (
+            <Card 
+              key={note.id} 
+              className="group card-hover border-border/50 bg-card/80 backdrop-blur-sm overflow-hidden"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
               <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <Link to={`/notes/${note.id}`} className="flex-1">
-                    <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors">
+                <div className="flex items-start justify-between gap-2">
+                  <Link to={`/notes/${note.id}`} className="flex-1 min-w-0">
+                    <CardTitle className="line-clamp-1 group-hover:text-primary transition-colors text-lg">
                       {note.title}
                     </CardTitle>
                   </Link>
@@ -214,25 +233,25 @@ export const NotesListPage: React.FC = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 h-8 w-8"
                       onClick={() => setDeleteNoteId(note.id)}
                     >
                       <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                     </Button>
                   )}
                 </div>
-                <CardDescription className="line-clamp-2">
-                  {note.content || 'No content'}
+                <CardDescription className="line-clamp-2 min-h-[40px]">
+                  {note.content || 'No content yet...'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 bg-muted/50 px-2 py-1 rounded-full">
                     <Clock className="h-3 w-3" />
                     <span>{formatDistanceToNow(new Date(note.updatedAt), { addSuffix: true })}</span>
                   </div>
                   {note.collaborators.length > 0 && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5 bg-primary/10 text-primary px-2 py-1 rounded-full">
                       <Users className="h-3 w-3" />
                       <span>{note.collaborators.length}</span>
                     </div>
@@ -254,7 +273,7 @@ export const NotesListPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteNote} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleDeleteNote} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
