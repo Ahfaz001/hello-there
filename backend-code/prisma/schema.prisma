@@ -22,8 +22,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  notes      Note[]
-  activities Activity[]
+  notes         Note[]
+  activities    Activity[]
+  collaborations NoteCollaborator[]
 
   @@map("users")
 }
@@ -38,12 +39,29 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner      User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  activities Activity[]
+  owner         User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  activities    Activity[]
+  collaborators NoteCollaborator[]
 
   @@index([ownerId])
   @@index([shareId])
   @@map("notes")
+}
+
+model NoteCollaborator {
+  id        String   @id @default(cuid())
+  noteId    String
+  userId    String
+  role      String   @default("viewer") // 'editor' or 'viewer'
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
+  @@index([noteId])
+  @@index([userId])
+  @@map("note_collaborators")
 }
 
 model Activity {
