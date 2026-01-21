@@ -10,6 +10,9 @@ export const useNotes = () => {
     queryKey: ['notes'],
     queryFn: () => fetchWithAuth<{ notes: Note[] }>(API_ENDPOINTS.NOTES, token!),
     enabled: !!token,
+    // Keep lists up-to-date for collaborators without manual refresh.
+    refetchInterval: 3000,
+    refetchIntervalInBackground: true,
     select: (data) => data.notes,
   });
 };
@@ -122,9 +125,37 @@ export const useAddCollaborator = () => {
         throw new Error(error?.error || error?.message || 'Failed to add collaborator');
       }
       
-      return response.json();
+      return response.json() as Promise<ApiResponse<Collaborator>>;
     },
-    onSuccess: (_, { noteId }) => {
+    onSuccess: (result, { noteId }) => {
+      const collaborator = result?.data;
+
+      if (collaborator) {
+        // Update note detail cache immediately (so Share dialog updates without refresh)
+        queryClient.setQueryData<Note>(['notes', noteId], (prev) => {
+          if (!prev) return prev;
+          const nextCollaborators = [
+            ...prev.collaborators.filter((c) => c.userId !== collaborator.userId),
+            collaborator,
+          ];
+          return { ...prev, collaborators: nextCollaborators };
+        });
+
+        // Also update notes list cache immediately (owner/admin view)
+        queryClient.setQueryData<Note[]>(['notes'], (prev) => {
+          if (!prev) return prev;
+          return prev.map((n) => {
+            if (n.id !== noteId) return n;
+            const nextCollaborators = [
+              ...n.collaborators.filter((c) => c.userId !== collaborator.userId),
+              collaborator,
+            ];
+            return { ...n, collaborators: nextCollaborators };
+          });
+        });
+      }
+
+      // Still refetch in background to ensure server is the source of truth
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
@@ -150,9 +181,23 @@ export const useRemoveCollaborator = () => {
         throw new Error(error?.error || error?.message || 'Failed to remove collaborator');
       }
       
-      return response.json();
+      return response.json() as Promise<{ message?: string } | ApiResponse<void>>;
     },
-    onSuccess: (_, { noteId }) => {
+    onSuccess: (_, { noteId, userId }) => {
+      // Update caches immediately
+      queryClient.setQueryData<Note>(['notes', noteId], (prev) => {
+        if (!prev) return prev;
+        return { ...prev, collaborators: prev.collaborators.filter((c) => c.userId !== userId) };
+      });
+
+      queryClient.setQueryData<Note[]>(['notes'], (prev) => {
+        if (!prev) return prev;
+        return prev.map((n) => {
+          if (n.id !== noteId) return n;
+          return { ...n, collaborators: n.collaborators.filter((c) => c.userId !== userId) };
+        });
+      });
+
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
       queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
