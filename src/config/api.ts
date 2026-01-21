@@ -1,5 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hello-there-production-4348.up.railway.app/api';
+const WS_URL = import.meta.env.VITE_WS_URL || 'wss://hello-there-production-4348.up.railway.app';
 
 export const API_ENDPOINTS = {
   // Auth
