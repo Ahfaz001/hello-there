@@ -5,10 +5,11 @@ import { prisma } from '../lib/prisma.js';
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   userName?: string;
+  userRole?: string;
 }
 
 // Track active collaborators per note
-const noteCollaborators = new Map<string, Set<{ odl_socketId: string; userId: string; userName: string }>>();
+const noteCollaborators = new Map<string, Set<{ socketId: string; userId: string; userName: string }>>();
 
 export function setupSocketHandlers(io: Server): void {
   // Middleware to authenticate socket connections
@@ -27,7 +28,7 @@ export function setupSocketHandlers(io: Server): void {
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, role: true },
       });
 
       if (!user) {
@@ -36,6 +37,7 @@ export function setupSocketHandlers(io: Server): void {
 
       socket.userId = user.id;
       socket.userName = user.name;
+      socket.userRole = user.role;
       next();
     } catch (error) {
       next(new Error('Invalid token'));
@@ -48,10 +50,20 @@ export function setupSocketHandlers(io: Server): void {
     // Join a note room for collaboration
     socket.on('join-note', async (noteId: string) => {
       try {
-        // Verify user has access to the note
-        const note = await prisma.note.findUnique({
-          where: { id: noteId },
-          select: { ownerId: true },
+        // Verify user has access to the note (owner, collaborator, or admin)
+        const note = await prisma.note.findFirst({
+          where: {
+            id: noteId,
+            ...(socket.userRole === 'admin'
+              ? {}
+              : {
+                  OR: [
+                    { ownerId: socket.userId! },
+                    { collaborators: { some: { userId: socket.userId! } } },
+                  ],
+                }),
+          },
+          select: { id: true },
         });
 
         if (!note) {
@@ -67,12 +79,6 @@ export function setupSocketHandlers(io: Server): void {
           noteCollaborators.set(noteId, new Set());
         }
 
-        const collaborator = {
-          odl_socketId: socket.id,
-          odl_userId: socket.userId!,
-          odl_userName: socket.userName!,
-        };
-
         // Remove old entry for same user if exists
         const existingCollabs = noteCollaborators.get(noteId)!;
         existingCollabs.forEach((c) => {
@@ -81,23 +87,16 @@ export function setupSocketHandlers(io: Server): void {
           }
         });
 
-        noteCollaborators.get(noteId)!.add({
-          odl_socketId: socket.id,
-          userId: socket.userId!,
-          userName: socket.userName!,
-        });
+        noteCollaborators.get(noteId)!.add({ socketId: socket.id, userId: socket.userId!, userName: socket.userName! });
 
         // Notify others in the room
         socket.to(`note:${noteId}`).emit('user-joined', {
-          odl_userId: socket.userId,
-          odl_userName: socket.userName,
+          userId: socket.userId,
+          userName: socket.userName,
         });
 
         // Send current collaborators to the joining user
-        const collaborators = Array.from(noteCollaborators.get(noteId)!).map((c) => ({
-          userId: c.userId,
-          userName: c.userName,
-        }));
+        const collaborators = Array.from(noteCollaborators.get(noteId)!).map((c) => ({ userId: c.userId, userName: c.userName }));
 
         socket.emit('collaborators', collaborators);
 
@@ -116,7 +115,7 @@ export function setupSocketHandlers(io: Server): void {
       const collabs = noteCollaborators.get(noteId);
       if (collabs) {
         collabs.forEach((c) => {
-          if (c.odl_socketId === socket.id) {
+          if (c.socketId === socket.id) {
             collabs.delete(c);
           }
         });
@@ -128,8 +127,8 @@ export function setupSocketHandlers(io: Server): void {
 
       // Notify others
       socket.to(`note:${noteId}`).emit('user-left', {
-        odl_userId: socket.userId,
-        odl_userName: socket.userName,
+        userId: socket.userId,
+        userName: socket.userName,
       });
 
       console.log(`${socket.userName} left note:${noteId}`);
@@ -191,7 +190,7 @@ export function setupSocketHandlers(io: Server): void {
       // Remove from all note collaborator lists
       noteCollaborators.forEach((collabs, noteId) => {
         collabs.forEach((c) => {
-          if (c.odl_socketId === socket.id) {
+          if (c.socketId === socket.id) {
             collabs.delete(c);
 
             // Notify others
