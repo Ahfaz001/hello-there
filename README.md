@@ -1,73 +1,242 @@
-# Welcome to your Lovable project
+# CollabNotes - Real-time Collaborative Notes Application
 
-## Project info
+A full-stack real-time collaborative notes application built with React, Node.js, Express, PostgreSQL, and WebSockets.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Features
 
-## How can I edit this code?
+- **User Authentication**: JWT-based authentication with role-based access control (Admin, Editor, Viewer)
+- **Real-time Collaboration**: Live collaborative editing using WebSockets
+- **Notes Management**: Create, read, update, and delete notes with rich content
+- **Activity Logging**: Track all changes with detailed activity logs
+- **Search & Filter**: Full-text search across all notes
+- **Shareable Links**: Create public read-only links for sharing notes
+- **Admin Panel**: User management for administrators
 
-There are several ways of editing your application.
+## 🏗️ Architecture
 
-**Use Lovable**
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│                 │     │                 │     │                 │
+│  React Frontend │────▶│  Express API    │────▶│  PostgreSQL     │
+│  (Vercel)       │     │  (Railway)      │     │  Database       │
+│                 │     │                 │     │                 │
+└─────────────────┘     └────────┬────────┘     └─────────────────┘
+                                 │
+                        ┌────────▼────────┐
+                        │                 │
+                        │  Socket.io      │
+                        │  WebSocket      │
+                        │                 │
+                        └─────────────────┘
+```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 📁 Project Structure
 
-Changes made via Lovable will be committed automatically to this repo.
+### Frontend (React + TypeScript + Vite)
+```
+src/
+├── components/          # Reusable UI components
+│   ├── layout/         # Header, MainLayout
+│   └── ui/             # shadcn/ui components
+├── contexts/           # React contexts (Auth)
+├── hooks/              # Custom hooks (useNotes, useActivity, useWebSocket)
+├── pages/              # Page components
+│   ├── auth/           # Login, Register
+│   ├── notes/          # NotesListPage, NoteEditorPage, PublicNotePage
+│   ├── ActivityPage    # Activity logs
+│   └── AdminPage       # Admin panel
+├── types/              # TypeScript types
+└── config/             # API configuration
+```
 
-**Use your preferred IDE**
+### Backend (Node.js + Express + Prisma)
+```
+backend/
+├── src/
+│   ├── controllers/    # Route handlers
+│   ├── middleware/     # Auth, validation middleware
+│   ├── routes/         # API routes
+│   ├── services/       # Business logic
+│   ├── socket/         # WebSocket handlers
+│   └── utils/          # Helpers
+├── prisma/
+│   └── schema.prisma   # Database schema
+└── package.json
+```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Tech Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Frontend
+- **React 18** - UI library
+- **TypeScript** - Type safety
+- **Vite** - Build tool
+- **TailwindCSS** - Styling
+- **React Query** - Server state management
+- **React Router** - Routing
+- **Socket.io Client** - WebSocket client
 
-Follow these steps:
+### Backend
+- **Node.js** - Runtime
+- **Express** - Web framework
+- **Prisma** - ORM
+- **PostgreSQL** - Database
+- **Socket.io** - WebSocket server
+- **JWT** - Authentication
+- **bcrypt** - Password hashing
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## 🚀 Getting Started
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Prerequisites
+- Node.js 18+
+- PostgreSQL database
+- npm or yarn
 
-# Step 3: Install the necessary dependencies.
-npm i
+### Frontend Setup
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+1. Clone the repository
+```bash
+git clone <repository-url>
+cd collabnotes-frontend
+```
+
+2. Install dependencies
+```bash
+npm install
+```
+
+3. Create `.env` file
+```env
+VITE_API_URL=http://localhost:3001/api
+VITE_WS_URL=http://localhost:3001
+```
+
+4. Start development server
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Backend Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Navigate to backend directory
+```bash
+cd backend
+```
 
-**Use GitHub Codespaces**
+2. Install dependencies
+```bash
+npm install
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+3. Create `.env` file
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/collabnotes"
+JWT_SECRET="your-super-secret-jwt-key"
+PORT=3001
+FRONTEND_URL="http://localhost:5173"
+```
 
-## What technologies are used for this project?
+4. Run database migrations
+```bash
+npx prisma migrate dev
+```
 
-This project is built with:
+5. Start the server
+```bash
+npm run dev
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📡 API Endpoints
 
-## How can I deploy this project?
+### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login user |
+| GET | `/api/auth/me` | Get current user |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Notes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/notes` | Get all notes |
+| GET | `/api/notes/:id` | Get single note |
+| POST | `/api/notes` | Create note |
+| PUT | `/api/notes/:id` | Update note |
+| DELETE | `/api/notes/:id` | Delete note |
+| POST | `/api/notes/:id/share` | Generate share link |
+| GET | `/api/notes/public/:shareId` | Get public note |
 
-## Can I connect a custom domain to my Lovable project?
+### Activity
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/activity` | Get activity logs |
 
-Yes, you can!
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/users` | Get all users |
+| PUT | `/api/admin/users/:id/role` | Update user role |
+| DELETE | `/api/admin/users/:id` | Delete user |
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🔌 WebSocket Events
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Client → Server
+- `join-note` - Join a note room for collaboration
+- `leave-note` - Leave a note room
+- `note-update` - Send note changes
+
+### Server → Client
+- `note-updated` - Receive note changes
+- `user-joined` - User joined the note
+- `user-left` - User left the note
+- `collaborators` - List of active collaborators
+
+## 🔐 Role-Based Access Control
+
+| Role | Permissions |
+|------|-------------|
+| **Admin** | Full access, manage users, delete any note |
+| **Editor** | Create, edit own notes, view all notes |
+| **Viewer** | Read-only access to notes |
+
+## 🌐 Deployment
+
+### Frontend (Vercel)
+1. Push code to GitHub
+2. Connect repository to Vercel
+3. Set environment variables
+4. Deploy
+
+### Backend (Railway)
+1. Push code to GitHub
+2. Create new Railway project
+3. Add PostgreSQL database
+4. Set environment variables
+5. Deploy
+
+## 📝 Environment Variables
+
+### Frontend
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Backend API URL |
+| `VITE_WS_URL` | WebSocket server URL |
+
+### Backend
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret key for JWT tokens |
+| `PORT` | Server port |
+| `FRONTEND_URL` | Frontend URL for CORS |
+
+## 📄 License
+
+MIT License
+
+## 👥 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
