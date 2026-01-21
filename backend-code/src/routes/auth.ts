@@ -44,7 +44,7 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' }
     );
 
     await logActivity(user.id, 'user_registered', 'New user account created');
@@ -79,7 +79,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
     const token = jwt.sign(
       { userId: user.id },
       process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      { expiresIn: '7d' }
     );
 
     await logActivity(user.id, 'user_login', 'User logged in');
