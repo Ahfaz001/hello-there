@@ -8,7 +8,7 @@ import { logActivity } from '../services/activity.js';
 
 const router = Router();
 
-// Get all notes (user's own notes + notes they can view)
+// Get all notes (user's own notes + notes they collaborate on)
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const { search } = req.query;
@@ -17,17 +17,23 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
 
     let where: any = {};
 
-    // Admins can see all notes, others only their own
+    // Admins can see all notes, others see their own + collaborated notes
     if (userRole !== 'admin') {
-      where.ownerId = userId;
+      where.OR = [
+        { ownerId: userId },
+        { collaborators: { some: { userId } } },
+      ];
     }
 
     // Search filter
     if (search && typeof search === 'string') {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { content: { contains: search, mode: 'insensitive' } },
-      ];
+      const searchCondition = {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { content: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+      where = { AND: [where, searchCondition] };
     }
 
     const notes = await prisma.note.findMany({
@@ -35,6 +41,13 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
       include: {
         owner: {
           select: { id: true, name: true, email: true },
+        },
+        collaborators: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -44,8 +57,15 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
     const transformedNotes = notes.map(note => ({
       ...note,
       ownerName: note.owner.name,
-      collaborators: [], // No collaborator feature in current schema
-      shareLink: note.shareId, // Map shareId to shareLink for frontend
+      collaborators: note.collaborators.map(c => ({
+        id: c.id,
+        userId: c.userId,
+        userName: c.user.name,
+        userEmail: c.user.email,
+        role: c.role,
+        addedAt: c.createdAt.toISOString(),
+      })),
+      shareLink: note.shareId,
     }));
 
     res.json({ notes: transformedNotes });
@@ -67,6 +87,13 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
         owner: {
           select: { id: true, name: true, email: true },
         },
+        collaborators: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
       },
     });
 
@@ -75,8 +102,9 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
       return;
     }
 
-    // Check access: admin can access all, others only their own
-    if (userRole !== 'admin' && note.ownerId !== userId) {
+    // Check access: admin can access all, owners and collaborators can access
+    const isCollaborator = note.collaborators.some(c => c.userId === userId);
+    if (userRole !== 'admin' && note.ownerId !== userId && !isCollaborator) {
       res.status(403).json({ error: 'Access denied' });
       return;
     }
@@ -85,7 +113,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
     const transformedNote = {
       ...note,
       ownerName: note.owner.name,
-      collaborators: [],
+      collaborators: note.collaborators.map(c => ({
+        id: c.id,
+        userId: c.userId,
+        userName: c.user.name,
+        userEmail: c.user.email,
+        role: c.role,
+        addedAt: c.createdAt.toISOString(),
+      })),
       shareLink: note.shareId,
     };
 
@@ -333,7 +368,7 @@ router.delete('/:id/share', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
-// Add collaborator (stub - feature not fully implemented in this version)
+// Add collaborator
 router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
     const { id } = req.params;
@@ -370,19 +405,46 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
       return;
     }
 
-    // Since we don't have a collaborators table, return a success response
-    // In a full implementation, this would create a record in a NoteCollaborator table
+    // Check if already a collaborator
+    const existingCollab = await prisma.noteCollaborator.findUnique({
+      where: {
+        noteId_userId: {
+          noteId: id,
+          userId: collaboratorUser.id,
+        },
+      },
+    });
+
+    if (existingCollab) {
+      res.status(400).json({ error: 'User is already a collaborator' });
+      return;
+    }
+
+    // Create the collaborator record
+    const collaborator = await prisma.noteCollaborator.create({
+      data: {
+        noteId: id,
+        userId: collaboratorUser.id,
+        role: role || 'viewer',
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
     await logActivity(userId, 'collaborator_added', `Added ${collaboratorUser.name} as ${role}`, note.id);
 
     res.status(201).json({
       data: {
-        id: `temp-${Date.now()}`,
+        id: collaborator.id,
         noteId: id,
-        userId: collaboratorUser.id,
-        userName: collaboratorUser.name,
-        userEmail: collaboratorUser.email,
-        role,
-        addedAt: new Date().toISOString(),
+        userId: collaborator.userId,
+        userName: collaborator.user.name,
+        userEmail: collaborator.user.email,
+        role: collaborator.role,
+        addedAt: collaborator.createdAt.toISOString(),
       },
     });
   } catch (error) {
@@ -390,13 +452,60 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
   }
 });
 
-// Remove collaborator (stub)
-router.delete('/:id/collaborators/:userId', authenticate, async (req: AuthRequest, res: Response, next) => {
+// Remove collaborator
+router.delete('/:id/collaborators/:collabUserId', authenticate, async (req: AuthRequest, res: Response, next) => {
   try {
+    const { id, collabUserId } = req.params;
+    const userId = req.user!.id;
+
+    const note = await prisma.note.findUnique({
+      where: { id },
+    });
+
+    if (!note) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+
+    // Only owner or admin can remove collaborators
+    if (note.ownerId !== userId && req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'Only the note owner can remove collaborators' });
+      return;
+    }
+
+    const collaborator = await prisma.noteCollaborator.findUnique({
+      where: {
+        noteId_userId: {
+          noteId: id,
+          userId: collabUserId,
+        },
+      },
+      include: {
+        user: {
+          select: { name: true },
+        },
+      },
+    });
+
+    if (!collaborator) {
+      res.status(404).json({ error: 'Collaborator not found' });
+      return;
+    }
+
+    await prisma.noteCollaborator.delete({
+      where: {
+        noteId_userId: {
+          noteId: id,
+          userId: collabUserId,
+        },
+      },
+    });
+
+    await logActivity(userId, 'collaborator_removed', `Removed ${collaborator.user.name}`, note.id);
+
     res.json({ message: 'Collaborator removed' });
   } catch (error) {
     next(error);
   }
 });
 
-export default router;
