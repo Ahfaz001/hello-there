@@ -436,6 +436,20 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
 
     await logActivity(userId, 'collaborator_added', `Added ${collaboratorUser.name} as ${role}`, note.id);
 
+    // Emit real-time event for collaborator addition
+    const io = req.app.get('io');
+    io.to(`note:${id}`).emit('collaborator-added', {
+      noteId: id,
+      collaborator: {
+        id: collaborator.id,
+        userId: collaborator.userId,
+        userName: collaborator.user.name,
+        userEmail: collaborator.user.email,
+        role: collaborator.role,
+        addedAt: collaborator.createdAt.toISOString(),
+      },
+    });
+
     res.status(201).json({
       data: {
         id: collaborator.id,
@@ -502,6 +516,13 @@ router.delete('/:id/collaborators/:collabUserId', authenticate, async (req: Auth
     });
 
     await logActivity(userId, 'collaborator_removed', `Removed ${collaborator.user.name}`, note.id);
+
+    // Emit real-time event for collaborator removal
+    const io = req.app.get('io');
+    io.to(`note:${id}`).emit('collaborator-removed', {
+      noteId: id,
+      userId: collabUserId,
+    });
 
     res.json({ message: 'Collaborator removed' });
   } catch (error) {

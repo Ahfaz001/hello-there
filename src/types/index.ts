@@ -63,7 +63,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface WebSocketMessage {
-  type: 'note_update' | 'cursor_position' | 'user_joined' | 'user_left' | 'typing';
+  type: 'note_update' | 'cursor_position' | 'user_joined' | 'user_left' | 'typing' | 'collaborator_added' | 'collaborator_removed';
   noteId: string;
   userId: string;
   userName: string;
