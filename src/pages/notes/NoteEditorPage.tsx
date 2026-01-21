@@ -69,10 +69,16 @@ export const NoteEditorPage: React.FC = () => {
   const addCollaborator = useAddCollaborator();
   const removeCollaborator = useRemoveCollaborator();
 
-  const canEdit = note && (
-    note.ownerId === user?.id || 
+  const collaborators = Array.isArray((note as any)?.collaborators)
+    ? (note as any).collaborators
+    : Array.isArray((note as any)?.note?.collaborators)
+      ? (note as any).note.collaborators
+      : [];
+
+  const canEdit = !!note && (
+    (note as any).ownerId === user?.id ||
     user?.role === 'admin' ||
-    note.collaborators.some(c => c.userId === user?.id && c.role === 'editor')
+    collaborators.some((c: any) => c.userId === user?.id && c.role === 'editor')
   );
 
   const queryClient = useQueryClient();
@@ -332,7 +338,7 @@ export const NoteEditorPage: React.FC = () => {
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {note.collaborators.map((collab) => (
+                    {collaborators.map((collab: any) => (
                       <div key={collab.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
                         <div>
                           <p className="font-medium text-sm">{collab.userName}</p>
@@ -350,7 +356,7 @@ export const NoteEditorPage: React.FC = () => {
                         </div>
                       </div>
                     ))}
-                    {note.collaborators.length === 0 && (
+                    {collaborators.length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No collaborators yet
                       </p>
