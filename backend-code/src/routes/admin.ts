@@ -115,6 +115,83 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
+// Get all notes (admin)
+router.get('/notes', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const notes = await prisma.note.findMany({
+      include: {
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        collaborators: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    res.json({
+      notes: notes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        ownerId: note.ownerId,
+        ownerName: note.owner.name,
+        ownerEmail: note.owner.email,
+        isPublic: note.isPublic,
+        shareId: note.shareId,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        collaborators: note.collaborators.map((c) => ({
+          id: c.id,
+          role: c.role,
+          user: c.user,
+        })),
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Delete any note (admin)
+router.delete('/notes/:id', async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { id } = req.params;
+    const adminId = req.user!.id;
+
+    const note = await prisma.note.findUnique({
+      where: { id },
+      select: { title: true, owner: { select: { name: true } } },
+    });
+
+    if (!note) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+
+    await prisma.note.delete({ where: { id } });
+
+    await logActivity(adminId, 'note_deleted', `Deleted note: ${note.title} (owner: ${note.owner.name})`);
+
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get admin stats
 router.get('/stats', async (req: AuthRequest, res: Response, next) => {
   try {
