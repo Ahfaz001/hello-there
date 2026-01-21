@@ -16,9 +16,42 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
+// CORS
+// NOTE: When testing from Lovable preview, the origin is a random *.lovable.app domain.
+// If we only allow a single FRONTEND_URL (e.g. your Vercel domain), the browser will show
+// `TypeError: Failed to fetch` due to CORS.
+const allowedOrigins = (
+  process.env.FRONTEND_URLS ||
+  process.env.FRONTEND_URL ||
+  'http://localhost:5173'
+)
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const isAllowedOrigin = (origin?: string) => {
+  if (!origin) return true; // non-browser requests (curl/postman)
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow Lovable preview/published domains
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname.endsWith('.lovable.app')) return true;
+  } catch {
+    // ignore invalid origins
+  }
+  return false;
+};
+
+type CorsOriginCallback = (err: Error | null, allow?: boolean) => void;
+
+const corsOrigin = (origin: string | undefined, callback: CorsOriginCallback) => {
+  if (isAllowedOrigin(origin)) return callback(null, true);
+  return callback(new Error(`CORS blocked for origin: ${origin}`));
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: corsOrigin,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
@@ -26,7 +59,7 @@ const io = new Server(httpServer, {
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true,
 }));
 app.use(express.json());
