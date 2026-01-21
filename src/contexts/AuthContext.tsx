@@ -53,8 +53,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Login failed' }));
-      throw new Error(error.message);
+      const payload = await response
+        .json()
+        .catch(() => ({ message: 'Login failed' } as Record<string, unknown>));
+      const message =
+        (payload as any)?.message || (payload as any)?.error || 'Login failed';
+      throw new Error(message);
     }
 
     const { token: newToken, user: newUser } = await response.json();
@@ -73,8 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Registration failed' }));
-      throw new Error(error.message);
+      const payload = await response
+        .json()
+        .catch(() => ({ message: 'Registration failed' } as Record<string, unknown>));
+      const message =
+        (payload as any)?.message || (payload as any)?.error || 'Registration failed';
+      throw new Error(message);
     }
 
     const { token: newToken, user: newUser } = await response.json();
