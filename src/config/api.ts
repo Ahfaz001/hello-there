@@ -5,8 +5,6 @@ export const API_ENDPOINTS = {
   // Auth
   LOGIN: `${API_BASE_URL}/auth/login`,
   REGISTER: `${API_BASE_URL}/auth/register`,
-  VERIFY_OTP: `${API_BASE_URL}/auth/verify-otp`,
-  RESEND_OTP: `${API_BASE_URL}/auth/resend-otp`,
   LOGOUT: `${API_BASE_URL}/auth/logout`,
   ME: `${API_BASE_URL}/auth/me`,
   
