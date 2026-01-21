@@ -107,13 +107,26 @@ export const useAddCollaborator = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ noteId, email, role }: { noteId: string; email: string; role: 'editor' | 'viewer' }) =>
-      fetchWithAuth<ApiResponse<Collaborator>>(API_ENDPOINTS.NOTE_COLLABORATORS(noteId), token!, {
+    mutationFn: async ({ noteId, email, role }: { noteId: string; email: string; role: 'editor' | 'viewer' }) => {
+      const response = await fetch(API_ENDPOINTS.NOTE_COLLABORATORS(noteId), {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ email, role }),
-      }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || error?.message || 'Failed to add collaborator');
+      }
+      
+      return response.json();
+    },
     onSuccess: (_, { noteId }) => {
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 };
@@ -123,12 +136,25 @@ export const useRemoveCollaborator = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ noteId, userId }: { noteId: string; userId: string }) =>
-      fetchWithAuth<ApiResponse<void>>(API_ENDPOINTS.NOTE_COLLABORATOR(noteId, userId), token!, {
+    mutationFn: async ({ noteId, userId }: { noteId: string; userId: string }) => {
+      const response = await fetch(API_ENDPOINTS.NOTE_COLLABORATOR(noteId, userId), {
         method: 'DELETE',
-      }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error?.error || error?.message || 'Failed to remove collaborator');
+      }
+      
+      return response.json();
+    },
     onSuccess: (_, { noteId }) => {
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 };
