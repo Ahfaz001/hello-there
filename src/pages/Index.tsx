@@ -63,8 +63,8 @@ const HomePage: React.FC = () => {
             </div>
             
             <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8">
-              <span className="inline-block animate-fade-in" style={{ animationDelay: '0.1s' }}>Your </span>
-              <span className="inline-block animate-fade-in" style={{ animationDelay: '0.2s' }}>Ideas, </span>
+              <span className="inline-block mr-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>Your</span>
+              <span className="inline-block mr-3 animate-fade-in" style={{ animationDelay: '0.2s' }}>Ideas,</span>
               <span className="inline-block text-gradient animate-fade-in" style={{ animationDelay: '0.4s' }}>Beautifully</span>
               <br />
               <span className="inline-block animate-fade-in" style={{ animationDelay: '0.6s' }}>Organized</span>
