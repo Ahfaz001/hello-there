@@ -49,7 +49,25 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
         
         onMessage?.(message);
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        // Handle Socket.io-style events from backend (collaborator-added, collaborator-removed, note-updated)
+        try {
+          const data = JSON.parse(event.data);
+          // Convert backend Socket.io events to WebSocketMessage format
+          if (data.collaborator || data.userId) {
+            const eventType = data.collaborator ? 'collaborator_added' : 'collaborator_removed';
+            const wsMessage: WebSocketMessage = {
+              type: eventType,
+              noteId: data.noteId || noteId,
+              userId: data.collaborator?.userId || data.userId || '',
+              userName: data.collaborator?.userName || '',
+              payload: data,
+              timestamp: new Date().toISOString(),
+            };
+            onMessage?.(wsMessage);
+          }
+        } catch {
+          console.error('Failed to parse WebSocket message:', error);
+        }
       }
     };
 

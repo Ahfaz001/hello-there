@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNote, useUpdateNote, useShareNote, useAddCollaborator, useRemoveCollaborator } from '@/hooks/useNotes';
 import { useNoteActivity } from '@/hooks/useActivity';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -74,6 +75,8 @@ export const NoteEditorPage: React.FC = () => {
     note.collaborators.some(c => c.userId === user?.id && c.role === 'editor')
   );
 
+  const queryClient = useQueryClient();
+
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
     if (message.type === 'note_update' && message.userId !== user?.id) {
       const payload = message.payload as { title: string; content: string };
@@ -81,7 +84,15 @@ export const NoteEditorPage: React.FC = () => {
       setContent(payload.content);
       lastSavedRef.current = { title: payload.title, content: payload.content };
     }
-  }, [user?.id]);
+    
+    // Handle real-time collaborator updates
+    if (message.type === 'collaborator_added' || message.type === 'collaborator_removed') {
+      // Refetch note data to get updated collaborators list
+      queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['activity', 'note', noteId] });
+    }
+  }, [user?.id, noteId, queryClient]);
 
   const { isConnected, connectedUsers, sendMessage } = useWebSocket({
     noteId: noteId!,

@@ -151,13 +151,16 @@ router.get('/notes', async (req: AuthRequest, res: Response, next) => {
         ownerName: note.owner.name,
         ownerEmail: note.owner.email,
         isPublic: note.isPublic,
-        shareId: note.shareId,
+        shareLink: note.shareId,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
         collaborators: note.collaborators.map((c) => ({
           id: c.id,
+          userId: c.user.id,
+          userName: c.user.name,
+          userEmail: c.user.email,
           role: c.role,
-          user: c.user,
+          addedAt: c.createdAt.toISOString(),
         })),
       })),
     });
