@@ -40,7 +40,15 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    res.json({ notes });
+    // Transform notes to match frontend expectations
+    const transformedNotes = notes.map(note => ({
+      ...note,
+      ownerName: note.owner.name,
+      collaborators: [], // No collaborator feature in current schema
+      shareLink: note.shareId, // Map shareId to shareLink for frontend
+    }));
+
+    res.json({ notes: transformedNotes });
   } catch (error) {
     next(error);
   }
@@ -73,7 +81,15 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response, next) =
       return;
     }
 
-    res.json({ note });
+    // Transform note to match frontend expectations
+    const transformedNote = {
+      ...note,
+      ownerName: note.owner.name,
+      collaborators: [],
+      shareLink: note.shareId,
+    };
+
+    res.json({ note: transformedNote });
   } catch (error) {
     next(error);
   }
@@ -133,14 +149,22 @@ router.post('/', authenticate, canEdit, validate(createNoteSchema), async (req: 
 
     await logActivity(userId, 'note_created', `Created note: ${title}`, note.id);
 
-    res.status(201).json({ note });
+    // Transform note to match frontend expectations
+    const transformedNote = {
+      ...note,
+      ownerName: note.owner.name,
+      collaborators: [],
+      shareLink: note.shareId,
+    };
+
+    res.status(201).json({ data: transformedNote });
   } catch (error) {
     next(error);
   }
 });
 
-// Update note
-router.put('/:id', authenticate, canEdit, validate(updateNoteSchema), async (req: AuthRequest, res: Response, next) => {
+// Update note helper function
+const handleUpdateNote = async (req: AuthRequest, res: Response, next: any) => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
@@ -181,11 +205,25 @@ router.put('/:id', authenticate, canEdit, validate(updateNoteSchema), async (req
     const io = req.app.get('io');
     io.to(`note:${id}`).emit('note-updated', { note, updatedBy: req.user });
 
-    res.json({ note });
+    // Transform note to match frontend expectations
+    const transformedNote = {
+      ...note,
+      ownerName: note.owner.name,
+      collaborators: [],
+      shareLink: note.shareId,
+    };
+
+    res.json({ note: transformedNote });
   } catch (error) {
     next(error);
   }
-});
+};
+
+// Update note (PUT)
+router.put('/:id', authenticate, canEdit, validate(updateNoteSchema), handleUpdateNote);
+
+// Update note (PATCH) - for frontend compatibility
+router.patch('/:id', authenticate, canEdit, validate(updateNoteSchema), handleUpdateNote);
 
 // Delete note
 router.delete('/:id', authenticate, canEdit, async (req: AuthRequest, res: Response, next) => {
