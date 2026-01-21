@@ -40,7 +40,8 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
       .replace(/^ws:\/\//i, 'http://');
 
     const socket = io(baseUrl, {
-      transports: ['websocket'],
+      // Allow polling fallback for networks/proxies where pure websocket can fail.
+      transports: ['polling', 'websocket'],
       auth: { token },
       reconnection: true,
       reconnectionAttempts: Infinity,
