@@ -54,4 +54,53 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response, next) => {
   }
 });
 
+// Get activity for a specific note
+router.get('/note/:noteId', authenticate, async (req: AuthRequest, res: Response, next) => {
+  try {
+    const { noteId } = req.params;
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+
+    // Check if user has access to the note
+    const note = await prisma.note.findUnique({
+      where: { id: noteId },
+    });
+
+    if (!note) {
+      res.status(404).json({ error: 'Note not found' });
+      return;
+    }
+
+    if (userRole !== 'admin' && note.ownerId !== userId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const activities = await prisma.activity.findMany({
+      where: { noteId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    res.json({
+      activities: activities.map((a) => ({
+        id: a.id,
+        action: a.action,
+        details: a.details,
+        noteId: a.noteId,
+        userId: a.userId,
+        userName: a.user.name,
+        createdAt: a.createdAt,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

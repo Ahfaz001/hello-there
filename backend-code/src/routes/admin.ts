@@ -40,8 +40,8 @@ router.get('/users', async (req: AuthRequest, res: Response, next) => {
   }
 });
 
-// Update user role
-router.put('/users/:id/role', async (req: AuthRequest, res: Response, next) => {
+// Update user role - helper function
+const handleUpdateRole = async (req: AuthRequest, res: Response, next: any) => {
   try {
     const { id } = req.params;
     const { role } = req.body;
@@ -75,7 +75,13 @@ router.put('/users/:id/role', async (req: AuthRequest, res: Response, next) => {
   } catch (error) {
     next(error);
   }
-});
+};
+
+// Update user role (PUT)
+router.put('/users/:id/role', handleUpdateRole);
+
+// Update user (PATCH) - for frontend compatibility
+router.patch('/users/:id', handleUpdateRole);
 
 // Delete user
 router.delete('/users/:id', async (req: AuthRequest, res: Response, next) => {
