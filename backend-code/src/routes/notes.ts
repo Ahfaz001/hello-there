@@ -375,6 +375,22 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
     const { email, role } = req.body;
     const userId = req.user!.id;
 
+    // Server-side validation for email and role
+    if (!email || typeof email !== 'string') {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail) || trimmedEmail.length > 255) {
+      res.status(400).json({ error: 'Invalid email address' });
+      return;
+    }
+
+    const validRoles = ['editor', 'viewer'];
+    const collabRole = validRoles.includes(role) ? role : 'viewer';
+
     const note = await prisma.note.findUnique({
       where: { id },
     });
@@ -391,7 +407,7 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
 
     // Find the user by email
     const collaboratorUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: trimmedEmail },
       select: { id: true, name: true, email: true },
     });
 
@@ -425,7 +441,7 @@ router.post('/:id/collaborators', authenticate, async (req: AuthRequest, res: Re
       data: {
         noteId: id,
         userId: collaboratorUser.id,
-        role: role || 'viewer',
+        role: collabRole,
       },
       include: {
         user: {

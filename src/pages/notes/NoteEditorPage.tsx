@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNote, useUpdateNote, useShareNote, useAddCollaborator, useRemoveCollaborator } from '@/hooks/useNotes';
@@ -40,6 +40,9 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { WebSocketMessage } from '@/types';
+import { z } from 'zod';
+
+const collaboratorEmailSchema = z.string().trim().email('Enter a valid email').max(255);
 
 const DEBOUNCE_DELAY = 500;
 const SAVE_INDICATOR_DURATION = 2000;
@@ -69,11 +72,19 @@ export const NoteEditorPage: React.FC = () => {
   const addCollaborator = useAddCollaborator();
   const removeCollaborator = useRemoveCollaborator();
 
-  const collaborators = Array.isArray((note as any)?.collaborators)
-    ? (note as any).collaborators
-    : Array.isArray((note as any)?.note?.collaborators)
-      ? (note as any).note.collaborators
-      : [];
+  const collaborators = useMemo(() => {
+    const raw = Array.isArray((note as any)?.collaborators)
+      ? (note as any).collaborators
+      : Array.isArray((note as any)?.note?.collaborators)
+        ? (note as any).note.collaborators
+        : [];
+    return (raw || []).filter(Boolean);
+  }, [note]);
+
+  const isNewCollabEmailValid = useMemo(
+    () => !newCollaboratorEmail.trim() || collaboratorEmailSchema.safeParse(newCollaboratorEmail).success,
+    [newCollaboratorEmail]
+  );
 
   const canEdit = !!note && (
     (note as any).ownerId === user?.id ||
@@ -221,10 +232,21 @@ export const NoteEditorPage: React.FC = () => {
 
   const handleAddCollaborator = async () => {
     if (!noteId || !newCollaboratorEmail.trim()) return;
+
+    const parsed = collaboratorEmailSchema.safeParse(newCollaboratorEmail);
+    if (!parsed.success) {
+      toast({
+        title: 'Invalid email',
+        description: parsed.error.issues?.[0]?.message || 'Enter a valid email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       await addCollaborator.mutateAsync({ 
         noteId, 
-        email: newCollaboratorEmail, 
+        email: parsed.data, 
         role: newCollaboratorRole 
       });
       setNewCollaboratorEmail('');
@@ -367,29 +389,34 @@ export const NoteEditorPage: React.FC = () => {
                         <SelectItem value="editor">Editor</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={handleAddCollaborator} disabled={addCollaborator.isPending}>
+                    <Button onClick={handleAddCollaborator} disabled={addCollaborator.isPending || !isNewCollabEmailValid}>
                       Add
                     </Button>
                   </div>
                   <div className="space-y-2">
-                    {collaborators.map((collab: any) => (
-                      <div key={collab.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                        <div>
-                          <p className="font-medium text-sm">{collab.userName}</p>
-                          <p className="text-xs text-muted-foreground">{collab.userEmail}</p>
+                    {collaborators.map((collab: any) => {
+                      const key = String(collab?.id ?? collab?.userId ?? `${collab?.userEmail ?? 'unknown'}-${collab?.role ?? 'viewer'}`);
+                      const name = String(collab?.userName || collab?.userEmail || 'Unknown user');
+                      const email = collab?.userEmail ? String(collab.userEmail) : '';
+                      return (
+                        <div key={key} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                          <div>
+                            <p className="font-medium text-sm">{name}</p>
+                            {email && <p className="text-xs text-muted-foreground">{email}</p>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">{collab.role}</Badge>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleRemoveCollaborator(collab.userId)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary">{collab.role}</Badge>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleRemoveCollaborator(collab.userId)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {collaborators.length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No collaborators yet
