@@ -131,40 +131,38 @@ export const useAddCollaborator = () => {
       const collaborator = result?.data;
 
       if (collaborator) {
-        // Update note detail cache immediately (so Share dialog updates without refresh)
+        // IMPORTANT: Keep cache shapes consistent with queryFn ({ note }) and ({ notes })
+        // so `select` does not break.
         queryClient.setQueryData<any>(['notes', noteId], (prev) => {
-          // Handle both shapes (historical): Note OR { note: Note }
           const prevNote: Note | undefined = prev?.note ?? prev;
           if (!prevNote) return prev;
 
-          const existingCollabs = prevNote.collaborators || [];
+          const existingCollabs = Array.isArray((prevNote as any).collaborators)
+            ? (prevNote as any).collaborators
+            : [];
           const nextCollaborators = [
-            ...existingCollabs.filter((c) => c.userId !== collaborator.userId),
+            ...existingCollabs.filter((c: any) => c.userId !== collaborator.userId),
             collaborator,
           ];
 
-          return prev?.note
-            ? { ...prev, note: { ...prevNote, collaborators: nextCollaborators } }
-            : { ...prevNote, collaborators: nextCollaborators };
+          return { note: { ...prevNote, collaborators: nextCollaborators } };
         });
 
-        // Also update notes list cache immediately (owner/admin view)
         queryClient.setQueryData<any>(['notes'], (prev) => {
-          // Handle both shapes (historical): Note[] OR { notes: Note[] }
           const prevNotes: Note[] | undefined = Array.isArray(prev) ? prev : prev?.notes;
           if (!Array.isArray(prevNotes)) return prev;
 
           const nextNotes = prevNotes.map((n) => {
             if (n.id !== noteId) return n;
-            const existingCollabs = n.collaborators || [];
+            const existingCollabs = Array.isArray((n as any).collaborators) ? (n as any).collaborators : [];
             const nextCollaborators = [
-              ...existingCollabs.filter((c) => c.userId !== collaborator.userId),
+              ...existingCollabs.filter((c: any) => c.userId !== collaborator.userId),
               collaborator,
             ];
             return { ...n, collaborators: nextCollaborators };
           });
 
-          return Array.isArray(prev) ? nextNotes : { ...prev, notes: nextNotes };
+          return { notes: nextNotes };
         });
       }
 
@@ -201,9 +199,9 @@ export const useRemoveCollaborator = () => {
       queryClient.setQueryData<any>(['notes', noteId], (prev) => {
         const prevNote: Note | undefined = prev?.note ?? prev;
         if (!prevNote) return prev;
-        const existingCollabs = prevNote.collaborators || [];
-        const nextNote = { ...prevNote, collaborators: existingCollabs.filter((c) => c.userId !== userId) };
-        return prev?.note ? { ...prev, note: nextNote } : nextNote;
+        const existingCollabs = Array.isArray((prevNote as any).collaborators) ? (prevNote as any).collaborators : [];
+        const nextNote = { ...prevNote, collaborators: existingCollabs.filter((c: any) => c.userId !== userId) };
+        return { note: nextNote };
       });
 
       queryClient.setQueryData<any>(['notes'], (prev) => {
@@ -212,11 +210,11 @@ export const useRemoveCollaborator = () => {
 
         const nextNotes = prevNotes.map((n) => {
           if (n.id !== noteId) return n;
-          const existingCollabs = n.collaborators || [];
-          return { ...n, collaborators: existingCollabs.filter((c) => c.userId !== userId) };
+          const existingCollabs = Array.isArray((n as any).collaborators) ? (n as any).collaborators : [];
+          return { ...n, collaborators: existingCollabs.filter((c: any) => c.userId !== userId) };
         });
 
-        return Array.isArray(prev) ? nextNotes : { ...prev, notes: nextNotes };
+        return { notes: nextNotes };
       });
 
       queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
