@@ -40,18 +40,20 @@ export const Header: React.FC = () => {
         <nav className="ml-8 hidden md:flex items-center gap-1">
           {isAuthenticated && (
             <>
-              <Link to="/notes">
-                <Button 
-                  variant={isActive('/notes') ? 'secondary' : 'ghost'} 
-                  size="sm"
-                  className={cn(
-                    "font-medium",
-                    isActive('/notes') && "bg-primary/10 text-primary hover:bg-primary/15"
-                  )}
-                >
-                  My Notes
-                </Button>
-              </Link>
+              {user?.role !== 'admin' && (
+                <Link to="/notes">
+                  <Button 
+                    variant={isActive('/notes') ? 'secondary' : 'ghost'} 
+                    size="sm"
+                    className={cn(
+                      "font-medium",
+                      isActive('/notes') && "bg-primary/10 text-primary hover:bg-primary/15"
+                    )}
+                  >
+                    My Notes
+                  </Button>
+                </Link>
+              )}
               <Link to="/activity">
                 <Button 
                   variant={isActive('/activity') ? 'secondary' : 'ghost'} 
@@ -106,12 +108,14 @@ export const Header: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link to="/notes" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    My Notes
-                  </Link>
-                </DropdownMenuItem>
+                {user?.role !== 'admin' && (
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/notes" className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      My Notes
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <Link to="/activity" className="flex items-center gap-2">
                     <Activity className="h-4 w-4" />
