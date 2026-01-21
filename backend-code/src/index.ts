@@ -17,6 +17,8 @@ const app = express();
 const httpServer = createServer(app);
 
 // CORS Configuration
+const allowAllOrigins = !process.env.FRONTEND_URLS && !process.env.FRONTEND_URL;
+
 const allowedOrigins = (
   process.env.FRONTEND_URLS ||
   process.env.FRONTEND_URL ||
@@ -27,6 +29,7 @@ const allowedOrigins = (
   .filter(Boolean);
 
 const isAllowedOrigin = (origin?: string) => {
+  if (allowAllOrigins) return true;
   if (!origin) return true; // non-browser requests (curl/postman)
   if (allowedOrigins.includes(origin)) return true;
   return false;
