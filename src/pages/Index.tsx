@@ -57,23 +57,24 @@ const HomePage: React.FC = () => {
         
         <div className="container relative py-24 md:py-36">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8 animate-fade-in">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8 opacity-0 animate-[fade-in_0.6s_ease-out_forwards]">
               <Sparkles className="h-4 w-4" />
               <span>Real-time collaborative notes platform</span>
             </div>
             
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8 animate-fade-in">
-              Your Ideas,{' '}
-              <span className="text-gradient">Beautifully</span>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-8">
+              <span className="inline-block opacity-0 animate-[fade-in_0.6s_ease-out_0.1s_forwards]">Your </span>
+              <span className="inline-block opacity-0 animate-[fade-in_0.6s_ease-out_0.2s_forwards]">Ideas, </span>
+              <span className="inline-block text-gradient opacity-0 animate-[fade-in_0.6s_ease-out_0.4s_forwards]">Beautifully</span>
               <br />
-              Organized
+              <span className="inline-block opacity-0 animate-[fade-in_0.6s_ease-out_0.6s_forwards]">Organized</span>
             </h1>
             
-            <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto animate-fade-in">
+            <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto opacity-0 animate-[fade-in_0.6s_ease-out_0.8s_forwards]">
               A powerful collaborative notes application for teams. Create, edit, and share notes with real-time synchronization.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center opacity-0 animate-[fade-in_0.6s_ease-out_1s_forwards]">
               {isAuthenticated ? (
                 <Button asChild size="lg" className="h-14 px-8 text-lg group shadow-lg shadow-primary/25">
                   <Link to="/notes">
