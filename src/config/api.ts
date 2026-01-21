@@ -49,8 +49,9 @@ export const fetchWithAuth = async <T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Request failed' }));
-    throw new Error(error.message || `HTTP ${response.status}`);
+    const error = await response.json().catch(() => ({}));
+    const message = (error as any)?.message || (error as any)?.error || 'Request failed';
+    throw new Error(message || `HTTP ${response.status}`);
   }
 
   return response.json();
