@@ -35,12 +35,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, Share2, Users, History, Copy, Check, Trash2, 
-  Loader2, Globe, Lock, Wifi, WifiOff 
+  Loader2, Globe, Lock, Wifi, WifiOff, Save 
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { WebSocketMessage } from '@/types';
 
 const DEBOUNCE_DELAY = 500;
+const SAVE_INDICATOR_DURATION = 2000;
 
 export const NoteEditorPage: React.FC = () => {
   const { noteId } = useParams<{ noteId: string }>();
@@ -54,6 +55,8 @@ export const NoteEditorPage: React.FC = () => {
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
   const [newCollaboratorRole, setNewCollaboratorRole] = useState<'editor' | 'viewer'>('viewer');
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaved, setShowSaved] = useState(false);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedRef = useRef({ title: '', content: '' });
@@ -98,6 +101,7 @@ export const NoteEditorPage: React.FC = () => {
     if (!noteId || !canEdit) return;
     if (newTitle === lastSavedRef.current.title && newContent === lastSavedRef.current.content) return;
 
+    setIsSaving(true);
     try {
       await updateNote.mutateAsync({ 
         noteId, 
@@ -112,14 +116,26 @@ export const NoteEditorPage: React.FC = () => {
         userName: user!.name,
         payload: { title: newTitle, content: newContent },
       });
+
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), SAVE_INDICATOR_DURATION);
     } catch (err) {
       toast({
         title: 'Error',
         description: 'Failed to save changes',
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
   }, [noteId, canEdit, updateNote, sendMessage, user, toast]);
+
+  const handleManualSave = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    await saveNote(title, content);
+  }, [saveNote, title, content]);
 
   const debouncedSave = useCallback((newTitle: string, newContent: string) => {
     if (saveTimeoutRef.current) {
@@ -394,6 +410,31 @@ export const NoteEditorPage: React.FC = () => {
                 disabled={!canEdit}
               />
             </div>
+            
+            {canEdit && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  {showSaved && (
+                    <>
+                      <Check className="h-4 w-4 text-green-500" />
+                      <span className="text-green-600">Saved</span>
+                    </>
+                  )}
+                </div>
+                <Button 
+                  onClick={handleManualSave} 
+                  disabled={isSaving || (title === lastSavedRef.current.title && content === lastSavedRef.current.content)}
+                >
+                  {isSaving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  {isSaving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            )}
+            
             {!canEdit && (
               <p className="text-sm text-muted-foreground mt-4">
                 You have view-only access to this note.
