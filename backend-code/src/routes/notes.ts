@@ -231,22 +231,39 @@ const handleUpdateNote = async (req: AuthRequest, res: Response, next: any) => {
         owner: {
           select: { id: true, name: true, email: true },
         },
+        collaborators: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
       },
     });
 
     await logActivity(userId, 'note_updated', `Updated note: ${note.title}`, note.id);
 
-    // Emit real-time update
-    const io = req.app.get('io');
-    io.to(`note:${id}`).emit('note-updated', { note, updatedBy: req.user });
+    // Transform collaborators to match frontend expectations
+    const transformedCollaborators = note.collaborators.map(c => ({
+      id: c.id,
+      userId: c.userId,
+      userName: c.user.name,
+      userEmail: c.user.email,
+      role: c.role,
+      addedAt: c.createdAt.toISOString(),
+    }));
 
     // Transform note to match frontend expectations
     const transformedNote = {
       ...note,
       ownerName: note.owner.name,
-      collaborators: [],
+      collaborators: transformedCollaborators,
       shareLink: note.shareId,
     };
+
+    // Emit real-time update with full note data (including collaborators)
+    const io = req.app.get('io');
+    io.to(`note:${id}`).emit('note-updated', { note: transformedNote, updatedBy: req.user });
 
     res.json({ note: transformedNote });
   } catch (error) {
