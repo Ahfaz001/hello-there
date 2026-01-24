@@ -134,12 +134,11 @@ export const useAddCollaborator = () => {
       const collaborator = result?.data;
 
       if (collaborator) {
-        // IMPORTANT: cache stores raw queryFn results (select does NOT change cache):
-        // - ['notes'] => { notes: Note[] }
-        // - ['notes', noteId] => { note: Note }
+        // Optimistic update: only update cache if it exists
         queryClient.setQueryData<any>(['notes', noteId], (prev) => {
+          if (!prev) return prev; // Cache not initialized—will refetch below
           const prevNote: Note | undefined = (prev as any)?.note ?? prev;
-          if (!prevNote) return prev;
+          if (!prevNote?.id) return prev;
 
           const existingCollabs = Array.isArray((prevNote as any).collaborators)
             ? (prevNote as any).collaborators
@@ -154,6 +153,7 @@ export const useAddCollaborator = () => {
         });
 
         queryClient.setQueryData<any>(['notes'], (prev) => {
+          if (!prev) return prev; // Cache not initialized—will refetch below
           const prevNotes: Note[] | undefined = Array.isArray((prev as any)?.notes)
             ? (prev as any).notes
             : Array.isArray(prev)
@@ -175,9 +175,9 @@ export const useAddCollaborator = () => {
         });
       }
 
-      // Still refetch in background to ensure server is the source of truth
-      queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      // CRITICAL: Force immediate refetch to populate cache and ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ['notes', noteId], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'active' });
     },
   });
 };
@@ -204,16 +204,18 @@ export const useRemoveCollaborator = () => {
       return response.json() as Promise<{ message?: string } | ApiResponse<void>>;
     },
     onSuccess: (_, { noteId, userId }) => {
-      // Update caches immediately
+      // Optimistic update: only update cache if it exists
       queryClient.setQueryData<any>(['notes', noteId], (prev) => {
+        if (!prev) return prev; // Cache not initialized—will refetch below
         const prevNote: Note | undefined = (prev as any)?.note ?? prev;
-        if (!prevNote) return prev;
+        if (!prevNote?.id) return prev;
         const existingCollabs = Array.isArray((prevNote as any).collaborators) ? (prevNote as any).collaborators : [];
         const nextNote = { ...prevNote, collaborators: existingCollabs.filter((c: any) => c.userId !== userId) };
         return { note: nextNote };
       });
 
       queryClient.setQueryData<any>(['notes'], (prev) => {
+        if (!prev) return prev; // Cache not initialized—will refetch below
         const prevNotes: Note[] | undefined = Array.isArray((prev as any)?.notes)
           ? (prev as any).notes
           : Array.isArray(prev)
@@ -230,8 +232,9 @@ export const useRemoveCollaborator = () => {
         return { notes: nextNotes };
       });
 
-      queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      // CRITICAL: Force immediate refetch to populate cache and ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ['notes', noteId], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'active' });
     },
   });
 };
