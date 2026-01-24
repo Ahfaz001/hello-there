@@ -215,8 +215,25 @@ const handleUpdateNote = async (req: AuthRequest, res: Response, next: any) => {
       return;
     }
 
-    // Check permission: admin can edit all, others only their own
+    // Check permission:
+    // - admin can edit all
+    // - owner can edit
+    // - collaborator can edit ONLY if their collaborator role is 'editor'
+    let isEditorCollaborator = false;
     if (userRole !== 'admin' && existingNote.ownerId !== userId) {
+      const collab = await prisma.noteCollaborator.findUnique({
+        where: {
+          noteId_userId: {
+            noteId: id,
+            userId,
+          },
+        },
+        select: { role: true },
+      });
+      isEditorCollaborator = collab?.role === 'editor';
+    }
+
+    if (userRole !== 'admin' && existingNote.ownerId !== userId && !isEditorCollaborator) {
       res.status(403).json({ error: 'Access denied' });
       return;
     }
