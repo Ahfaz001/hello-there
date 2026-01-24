@@ -170,7 +170,7 @@ export const NoteEditorPage: React.FC = () => {
     }
   }, [user?.id, noteId, queryClient]);
 
-  const { isConnected, connectedUsers, lastError, sendMessage, reconnect } = useWebSocket({
+  const { isConnected, connectedUsers, lastError, reconnect } = useWebSocket({
     noteId: noteId!,
     token: token!,
     onMessage: handleWebSocketMessage,
@@ -196,14 +196,6 @@ export const NoteEditorPage: React.FC = () => {
       });
       lastSavedRef.current = { title: newTitle, content: newContent };
 
-      sendMessage({
-        type: 'note_update',
-        noteId,
-        userId: user!.id,
-        userName: user!.name,
-        payload: { title: newTitle, content: newContent },
-      });
-
       setShowSaved(true);
       setTimeout(() => setShowSaved(false), SAVE_INDICATOR_DURATION);
     } catch (err) {
@@ -215,7 +207,7 @@ export const NoteEditorPage: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  }, [noteId, canEdit, updateNote, sendMessage, user, toast]);
+  }, [noteId, canEdit, updateNote, toast]);
 
   const handleManualSave = useCallback(async () => {
     if (saveTimeoutRef.current) {
