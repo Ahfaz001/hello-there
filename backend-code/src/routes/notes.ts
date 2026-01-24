@@ -261,9 +261,16 @@ const handleUpdateNote = async (req: AuthRequest, res: Response, next: any) => {
       shareLink: note.shareId,
     };
 
-    // Emit real-time update with full note data (including collaborators)
+    // Emit real-time update. Include both legacy top-level fields (title/content)
+    // and the full note payload (including collaborators) so all clients can stay in sync.
     const io = req.app.get('io');
-    io.to(`note:${id}`).emit('note-updated', { note: transformedNote, updatedBy: req.user });
+    io.to(`note:${id}`).emit('note-updated', {
+      noteId: id,
+      title: transformedNote.title,
+      content: transformedNote.content,
+      note: transformedNote,
+      updatedBy: req.user,
+    });
 
     res.json({ note: transformedNote });
   } catch (error) {

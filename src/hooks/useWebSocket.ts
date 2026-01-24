@@ -97,14 +97,21 @@ export const useWebSocket = ({ noteId, token, onMessage, onConnect, onDisconnect
     });
 
     socket.on('note-updated', (data: any) => {
+      const noteFromPayload = data?.note;
+      const derivedNoteId = data?.noteId ?? noteFromPayload?.id ?? noteId;
+      const derivedTitle = data?.title ?? noteFromPayload?.title ?? '';
+      const derivedContent = data?.content ?? noteFromPayload?.content ?? '';
+
       const wsMessage: WebSocketMessage = {
         type: 'note_update',
-        noteId: data?.noteId ?? noteId,
+        noteId: derivedNoteId,
         userId: data?.updatedBy?.id ?? '',
         userName: data?.updatedBy?.name ?? '',
         payload: {
-          title: data?.title ?? '',
-          content: data?.content ?? '',
+          title: derivedTitle,
+          content: derivedContent,
+          // Include full note if provided so the editor can keep collaborators in sync.
+          note: noteFromPayload,
         },
         timestamp: new Date().toISOString(),
       };
