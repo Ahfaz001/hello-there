@@ -96,23 +96,50 @@ export const NoteEditorPage: React.FC = () => {
 
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
     if (message.type === 'note_update' && message.userId !== user?.id) {
-      const payload = message.payload as { title: string; content: string };
-      setTitle(payload.title);
-      setContent(payload.content);
-      lastSavedRef.current = { title: payload.title, content: payload.content };
+      const payload = message.payload as any;
+
+      const nextTitle: string | undefined =
+        typeof payload?.title === 'string'
+          ? payload.title
+          : typeof payload?.note?.title === 'string'
+            ? payload.note.title
+            : undefined;
+
+      const nextContent: string | undefined =
+        typeof payload?.content === 'string'
+          ? payload.content
+          : typeof payload?.note?.content === 'string'
+            ? payload.note.content
+            : undefined;
+
+      const nextCollaborators = Array.isArray(payload?.note?.collaborators)
+        ? payload.note.collaborators
+        : undefined;
+
+      if (nextTitle !== undefined) setTitle(nextTitle);
+      if (nextContent !== undefined) setContent(nextContent);
+
+      if (nextTitle !== undefined || nextContent !== undefined) {
+        lastSavedRef.current = {
+          title: nextTitle ?? lastSavedRef.current.title,
+          content: nextContent ?? lastSavedRef.current.content,
+        };
+      }
 
       // Keep react-query caches in sync as well (so other UI that reads from cache stays updated)
       queryClient.setQueryData<any>(['notes', noteId], (prev) => {
         const prevNote = prev?.note ?? prev;
         if (!prevNote) return prev;
-        return {
-          note: {
-            ...prevNote,
-            title: payload.title,
-            content: payload.content,
-            updatedAt: new Date().toISOString(),
-          },
+
+        const merged = {
+          ...prevNote,
+          ...(nextTitle !== undefined ? { title: nextTitle } : {}),
+          ...(nextContent !== undefined ? { content: nextContent } : {}),
+          ...(nextCollaborators !== undefined ? { collaborators: nextCollaborators } : {}),
+          updatedAt: new Date().toISOString(),
         };
+
+        return { note: merged };
       });
 
       queryClient.setQueryData<any>(['notes'], (prev) => {
@@ -121,7 +148,13 @@ export const NoteEditorPage: React.FC = () => {
         return {
           notes: prevNotes.map((n: any) =>
             n?.id === noteId
-              ? { ...n, title: payload.title, content: payload.content, updatedAt: new Date().toISOString() }
+              ? {
+                  ...n,
+                  ...(nextTitle !== undefined ? { title: nextTitle } : {}),
+                  ...(nextContent !== undefined ? { content: nextContent } : {}),
+                  ...(nextCollaborators !== undefined ? { collaborators: nextCollaborators } : {}),
+                  updatedAt: new Date().toISOString(),
+                }
               : n
           ),
         };
@@ -131,9 +164,9 @@ export const NoteEditorPage: React.FC = () => {
     // Handle real-time collaborator updates
     if (message.type === 'collaborator_added' || message.type === 'collaborator_removed') {
       // Refetch note data to get updated collaborators list
-      queryClient.invalidateQueries({ queryKey: ['notes', noteId] });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      queryClient.invalidateQueries({ queryKey: ['activity', 'note', noteId] });
+      queryClient.invalidateQueries({ queryKey: ['notes', noteId], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['notes'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['activity', 'note', noteId], refetchType: 'active' });
     }
   }, [user?.id, noteId, queryClient]);
 
