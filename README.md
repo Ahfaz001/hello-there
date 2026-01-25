@@ -1,4 +1,4 @@
-## CollabNotes - Real-time Collaborative Notes Application
+### CollabNotes - Real-time Collaborative Notes Application
 
 A full-stack real-time collaborative notes application built with React, Node.js, Express, PostgreSQL, and WebSockets.
 
